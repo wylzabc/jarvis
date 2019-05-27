@@ -1,0 +1,263 @@
+pipeline {
+    environment {
+        sendmail = 'yes'
+        SONAR_HOME = tool name: 'SonarQube Scanner'
+        PATH="${env.SONAR_HOME}/bin:${env.PATH}"
+        GITTAG=''
+    }
+
+    agent {
+      kubernetes {
+        label 'devops-golang'
+        defaultContainer 'jnlp'
+        yaml """
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    labels:
+      app: devops-golang
+  spec:
+    volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: jenkins-workspace
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+          type: File
+    containers:
+    - name: jnlp
+      image: core.harbor.ebupt.com/library/jenkins/jnlp-slave:3.27-1
+      imagePullPolicy: Always
+      args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+      tty: true
+      volumeMounts:
+      - name: workspace
+        mountPath: /home/jenkins/workspace
+      - name: docker-socket
+        mountPath: /var/run/docker.sock
+    - name: sonar-scanner
+      image: core.harbor.ebupt.com/library/mercuriete/sonar-scanner:3.2.0.1227
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: SONAR_HOST_URL
+          value: 'http://devops-sonarqube-sonarqube.devops:9000'
+        - name: SONAR_PROJECT_KEY
+          value: 'd63be7db24e1cf9e94d91f232d9ff3eab5f362c2'
+        - name: SONAR_PROJECT_NAME
+          value: 'test'
+        - name: SONAR_PROJECT_VERSION
+          value: '0.1'
+      command:
+      - cat
+      tty: true
+      volumeMounts:
+      - name: workspace
+        mountPath: /home/jenkins/workspace
+    - name: builder-go
+      image: core.harbor.ebupt.com/library/builder-golang:1.12-alpine
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        privileged: true
+      env:
+        - name: PATH
+          value: '/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+      command:
+      - cat
+      tty: true
+      volumeMounts:
+      - name: workspace
+        mountPath: /home/jenkins/workspace
+    - name: build-dockerimage
+      image: core.harbor.ebupt.com/library/docker:stable
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        privileged: true
+      command:
+      - cat
+      tty: true
+      volumeMounts:
+      - name: workspace
+        mountPath: /home/jenkins/workspace
+      - name: docker-socket
+        mountPath: /var/run/docker.sock
+    - name: deploy-k8s
+      image: core.harbor.ebupt.com/library/lachlanevenson/k8s-kubectl:v1.12.7
+      imagePullPolicy: IfNotPresent
+      command:
+      - cat
+      tty: true
+      volumeMounts:
+      - name: workspace
+        mountPath: /home/jenkins/workspace
+  """
+      }
+    }
+
+    stages {
+        stage('预处理') {
+            steps {
+                echo "env.gitlabBranch: ${env.gitlabBranch}"
+                echo "env.gitlabSourceBranch: ${env.gitlabSourceBranch}"
+                echo "env.gitlabActionType: ${env.gitlabActionType}"
+                echo "env.gitlabUserName: ${env.gitlabUserName}"
+                echo "env.gitlabUserEmail: ${env.gitlabUserEmail}"
+                echo "env.gitlabSourceRepoHomepage: ${env.gitlabSourceRepoHomepage}"
+                echo "env.gitlabSourceRepoName: ${env.gitlabSourceRepoName}"
+                echo "env.gitlabSourceNamespace: ${env.gitlabSourceNamespace}"
+                echo "env.gitlabSourceRepoURL: ${env.gitlabSourceRepoURL}"
+                echo "env.gitlabSourceRepoSshUrl: ${env.gitlabSourceRepoSshUrl}"
+                echo "env.gitlabSourceRepoHttpUrl: ${env.gitlabSourceRepoHttpUrl}"
+                echo "env.gitlabMergeRequestTitle: ${env.gitlabMergeRequestTitle}"
+                echo "env.gitlabMergeRequestDescription: ${env.gitlabMergeRequestDescription}"
+                echo "env.gitlabMergeRequestId: ${env.gitlabMergeRequestId}"
+                echo "env.gitlabMergeRequestIid: ${env.gitlabMergeRequestIid}"
+                echo "env.gitlabMergeRequestState: ${env.gitlabMergeRequestState}"
+                echo "env.gitlabMergedByUser: ${env.gitlabMergedByUser}"
+                echo "env.gitlabMergeRequestAssignee: ${env.gitlabMergeRequestAssignee}"
+                echo "env.gitlabMergeRequestLastCommit: ${env.gitlabMergeRequestLastCommit}"
+                echo "env.gitlabMergeRequestTargetProjectId: ${env.gitlabMergeRequestTargetProjectId}"
+                echo "env.gitlabTargetBranch: ${env.gitlabTargetBranch}"
+                echo "env.gitlabTargetRepoName: ${env.gitlabTargetRepoName}"
+                echo "env.gitlabTargetNamespace: ${env.gitlabTargetNamespace}"
+                echo "env.gitlabTargetRepoSshUrl: ${env.gitlabTargetRepoSshUrl}"
+                echo "env.gitlabTargetRepoHttpUrl: ${env.gitlabTargetRepoHttpUrl}"
+                echo "env.gitlabBefore: ${env.gitlabBefore}"
+                echo "env.gitlabAfter: ${env.gitlabAfter}"
+                echo "env.gitlabTriggerPhrase: ${env.gitlabTriggerPhrase}"
+                //sh 'while true; do echo hello world; sleep 1; done'
+                echo "env.BRANCH_NAME: ${env.BRANCH_NAME}"
+                echo "env.BRANCH_ID: ${env.BRANCH_ID}"
+                echo "env.BRANCH_DISPLAY_NAME: ${env.BRANCH_DISPLAY_NAME}"
+                echo "env.JOB_NAME: ${env.JOB_NAME}"
+                echo "env.BUILD_TAG: ${env.BUILD_TAG}"
+                echo "env.JENKINS_HOME: ${env.JENKINS_HOME}"
+            }
+        }
+        stage('拉取代码') {
+            steps {
+                container('jnlp') {
+                    //sh '/pullcode.sh ${gitlabSourceRepoHttpUrl} ${gitlabSourceBranch}'
+                    //sh '/pullcode.sh http://gitlab.devops/${gitlabSourceNamespace}/${gitlabSourceRepoName} ${gitlabSourceBranch}'
+                    checkout([$class: 'GitSCM', branches: [[name: '${gitlabSourceBranch}']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'gitlabRootToken', url: "http://gitlab.devops/${gitlabSourceNamespace}/${gitlabSourceRepoName}"]]])
+                    sh(returnStdout: true, script: 'cd /home/jenkins/workspace/${gitlabSourceRepoName}; git tag -l --contains HEAD > /home/jenkins/workspace/${gitlabSourceRepoName}/git.tag')
+                }
+            }
+        }
+        stage('代码扫描') {
+            steps {
+                container('sonar-scanner') {
+                    sh '''sonar-scanner \
+                            -Dsonar.host.url=http://devops-sonarqube-sonarqube.devops:9000 \
+                            -Dsonar.projectKey=e6662ba0089e1d4c034d6aec962a8b7a8cdea7c7 \
+                            -Dsonar.projectName=${gitlabSourceRepoName} \
+                            -Dsonar.projectVersion=1 \
+                            -Dsonar.projectBaseDir=/home/jenkins/workspace \
+                            -Dsonar.sources=./ \
+                            -Dsonar.language=go 
+                        '''
+                }
+            }
+        }
+        /*
+        stage('处理代码扫描结果') {
+            steps {
+                script{
+                    timeout(time: 10, unit: 'SECONDS') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                        }
+                        else {
+                            echo "code scan ok"
+                        }
+                    }
+                }
+            }
+        }
+        */
+        stage('编译&单元测试') {
+            steps {
+                container('builder-go') {
+                    sh '''
+                            PATH=/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
+                            export PATH
+                            go version
+                            ls /home/jenkins/workspace/${gitlabSourceRepoName}
+                            cd /home/jenkins/workspace/${gitlabSourceRepoName}
+                            make test
+                       '''
+                }
+            }
+        }
+        stage('构建镜像') {
+            when {
+                allOf{
+                    //environment name:'gitlabBranch',value:'master'
+                    environment name:'gitlabActionType',value:'TAG_PUSH'
+                }
+            }
+            steps {
+                container('build-dockerimage') {
+                    script {
+                        def gittag=''
+                        sh 'ls /home/jenkins/workspace/${gitlabSourceRepoName}'
+                        //gitlabtag='refs/tags/3.8.1'
+                        def res=gitlabSourceBranch.split("\\/")
+                        echo res[2]
+                        gittag = res[2]
+                        //gittag = readFile("/home/jenkins/workspace/${gitlabSourceRepoName}/git.tag").trim()
+                        sh 'docker login -u admin -p Harbor12345 core.harbor.ebupt.com'
+                        if (gittag=='')
+                            dockerImageTag='core.harbor.ebupt.com/library/${gitlabSourceRepoName}'
+                        else
+                            dockerImageTag='core.harbor.ebupt.com/library/${gitlabSourceRepoName}:' + gittag
+                        sh 'docker build /home/jenkins/workspace/${gitlabSourceRepoName} -t ' + dockerImageTag
+                        sh 'docker push ' + dockerImageTag
+                    }
+                }
+            }
+        }
+        stage('部署到k8s') {
+            when {
+                allOf{
+                    //environment name:'gitlabBranch',value:'master'
+                    environment name:'gitlabActionType',value:'TAG_PUSH'
+                }
+            }
+            steps {
+                container('deploy-k8s') {
+                    sh '''ls /home/jenkins/workspace/${gitlabSourceRepoName}/deploy
+                          cd /home/jenkins/workspace/${gitlabSourceRepoName}/deploy
+                          kubectl --server=https://10.1.60.150:6443 --token='eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZXZvcHMiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlY3JldC5uYW1lIjoiZGV2b3BzLXRva2VuLW45Z213Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImRldm9wcyIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjgxOGNkM2EyLTVmNWQtMTFlOS05ZTBjLTAwNTA1NmE2NDNjMyIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZXZvcHM6ZGV2b3BzIn0.Am-FUF7DebUW90aheaL2J6OQml2k7zzJRE5ENfQY6vD1xmsSPIANjyMMky9OuiWtCkql4baVXvZJthuxT56YsM3EwTRQ8bm5Oom6OYaNPK2BzEPscAH9qlJoW6MhtKMUNH1vaV5LYG5L12cQZ9J12HFg1Qt0qrH_TKF5hbdudsGdcma39LJcKwxSJTlBc9-25K2v6oeNHxL2CEaCrmhHyVbZQzByLJ8pFxtdsBNMO8iiMZ4EzGJKWsS4ymNLB3p6jwXR8Drf0CM3Sa0o0pC0IJC_pWs4x3XDky8rHrBzhFPHrnx7IGf2IQ0FsMAgREeC1lEQx7Uug06NCKAqviUgng' --insecure-skip-tls-verify=true apply -f .
+                        '''
+                }
+            }
+            /*
+            steps {
+                container('deploy-k8s') {
+                    withKubeConfig([credentialsId: 'jenkins-k8s-token', serverUrl: 'https://10.1.60.140:6443']) {
+                      sh 'kubectl apply -f deploy/'
+                    }
+                }
+            }
+            */
+        }
+    }
+
+    post {
+        always {
+            script{
+                if(sendmail =='yes') {
+                    buildResult='完成'
+                    if (currentBuild.currentResult == 'SUCCESS') buildResult='成功'
+                    if (currentBuild.currentResult == 'FAILURE') buildResult='失败'
+                    emailext attachmentsPattern: 'TestResults\\*.trx',      
+                        body: '''${SCRIPT, template="groovy_html_ebdevops.template"}''', 
+                        subject: env.JOB_NAME + "项目构建结果：" + buildResult, 
+                        to: "${env.gitlabUserEmail}"
+                }
+            }
+        }
+    } 
+}

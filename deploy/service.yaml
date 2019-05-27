@@ -1,0 +1,15 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: jarvis
+  name: jarvis
+  namespace: devops
+spec:
+  ports:
+    - port: 8080 
+      targetPort: 8080
+  selector:
+    app: jarvis
+
