@@ -1,12 +1,12 @@
-package add
+package subtraction
 
 import (
 	//	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/wylzabc/jarvis/data"
 	"github.com/wylzabc/jarvis/util"
 	//"strconv"
 	"encoding/json"
-	"github.com/wylzabc/jarvis/data"
 	"testing"
 )
 
@@ -15,7 +15,7 @@ var router *gin.Engine
 func Init() {
 	gin.SetMode(gin.DebugMode)
 	router = gin.Default()
-	router.POST("/add/add", Add)
+	router.POST("/sub/sub", Sub)
 }
 
 //type AddData struct {
@@ -33,9 +33,9 @@ func Init() {
 //}
 //
 
-func TestAdd(t *testing.T) {
+func TestSub(t *testing.T) {
 	Init()
-	uri := "/add/add"
+	uri := "/sub/sub"
 	param := make(map[string]interface{})
 	param["num1"] = 1
 	param["num2"] = 2
@@ -46,7 +46,7 @@ func TestAdd(t *testing.T) {
 	if err != nil {
 		t.Errorf("解析响应出错，err:%v\n", err)
 	}
-	if result.Result != 3 {
+	if result.Result != -1 {
 		t.Errorf("响应数据不符，result: %v\n", result)
 	}
 }
