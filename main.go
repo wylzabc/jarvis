@@ -22,7 +22,7 @@ func InitRouter() {
 	})
 	router.POST("/add/add", add.Add)
 	router.POST("/sub/sub", subtraction.Sub)
-	router.POST("/sub/sub", multiplication.Multi)
+	router.POST("/multi/multi", multiplication.Multi)
 }
 func main() {
 	InitRouter()
