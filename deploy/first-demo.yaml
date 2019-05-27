@@ -1,0 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: jarvis
+  namespace: devops
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: jarvis
+    spec:
+      containers:
+      - name: jarvis
+        image: core.harbor.ebupt.com/library/jarvis:latest
+        ports:
+        - containerPort: 8080
+
