@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	// "net/http"
 	"github.com/wylzabc/jarvis/add"
+	"github.com/wylzabc/jarvis/subtraction"
 	//	"strconv"
 )
 
@@ -19,6 +20,7 @@ func InitRouter() {
 		})
 	})
 	router.POST("/add/add", add.Add)
+	router.POST("/sub/sub", subtraction.Sub)
 }
 func main() {
 	InitRouter()
