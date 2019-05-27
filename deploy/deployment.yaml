@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
       - name: jarvis
-        image: core.harbor.ebupt.com/library/jarvis:latest
+        image: core.harbor.ebupt.com/library/jarvis
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
